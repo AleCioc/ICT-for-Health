@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 #from mpl_toolkits.mplot3d import Axes3D
 matplotlib.style.use('ggplot')
 
-df = pd.read_csv("../Data/parkinsons_updrs.data")
+df = pd.read_csv("../Data/parkinsons_updrs.csv")
 df.test_time = df.test_time.apply(np.abs)
 
 df["day"] = df.test_time.astype(np.int64)
