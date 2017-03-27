@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.io import arff
 import pandas as pd
+from sklearn.cluster import KMeans
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -34,28 +35,72 @@ def load_data ():
         
     return df
 
-df = load_data().drop(24, axis=1)
+df = load_data().astype(float)
+true = df[24]
+df = df.drop(24, axis=1)
 
-from sklearn.cluster import KMeans
-kmeans = KMeans(n_clusters=2, random_state=0).fit(df.values)
+#kmeans = KMeans(n_clusters=8, 
+#                init='k-means++', 
+#                n_init=10, 
+#                max_iter=300, 
+#                tol=0.0001, 
+#                precompute_distances='auto', 
+#                verbose=0, 
+#                random_state=None, 
+#                copy_x=True, 
+#                n_jobs=1, 
+#                algorithm='auto').fit(df.values)
 
 from scipy.cluster.hierarchy import dendrogram, linkage
-Z = linkage(df.values)
-plt.figure()
+
+Z = linkage(df.apply(standardize).values, 
+            method='single', 
+            metric='euclidean')
+
+plt.figure(figsize=(13, 6))
+plt.title("Complete dendrogram")
 dendrogram(Z)
-plt.figure()
+
+plt.figure(figsize=(13, 6))
+plt.title("Reduced dendrogram, Mathematica(TM) style")
 dendrogram(Z, truncate_mode="mtica")
-plt.figure()
+
+plt.figure(figsize=(13, 6))
+plt.title("Reduced dendrogram, Last p method")
 dendrogram(Z, truncate_mode="lastp")
 
-df_class = load_data()
-
+from sklearn import cluster
 from sklearn import tree
+from sklearn import metrics
+from sklearn.model_selection import cross_val_score, cross_val_predict
+from sklearn.model_selection import ShuffleSplit
 
-X = df_class.loc[:, :23]
-Y = df_class[24]
+model = cluster.AgglomerativeClustering(n_clusters=2)
+clusters = model.fit_predict(df.values)
+cv = ShuffleSplit(n_splits=10, test_size=0.2, random_state=0)
+print metrics.silhouette_score(df, model.labels_, metric='sqeuclidean')
+
+def get_PCA (x):
+                    
+    Rx = cov_matrix(x)
+    eigvals, U = np.linalg.eig(Rx)
+    A = np.diag(eigvals)
+    z = x.dot(U).dot(np.linalg.inv(A))
+    
+    return z
+
+df = df.apply(standardize)
+#df = get_PCA(df.apply(standardize))
+
 clf = tree.DecisionTreeClassifier()
-clf = clf.fit(X, Y)
+clf = clf.fit(df.values, true)
+
+cv = ShuffleSplit(n_splits=10, test_size=0.2, random_state=0)
+scores = cross_val_score(clf, df, true, cv=cv)
+print scores
+
+predicted = cross_val_predict(clf, df, true, cv=10)
+print metrics.accuracy_score(true, predicted)
 
 import pydotplus
 

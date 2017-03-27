@@ -56,20 +56,26 @@ class HardKMeans (object):
         tn = float(((prediction == 1) & (true == 1)).sum())/float((true == 1).sum())
         fp = float(((prediction >= 2) & (true == 1)).sum())/float((true == 1).sum())
         fn = float(((prediction == 1) & (true >= 2)).sum())/float((true >= 2).sum())
+        sse = 0.0
+        for cluster_id in range(1, self.n_clusters+1):
+            sse += self.y.loc[prediction == cluster_id].apply(square_distance, 
+                                                          args=(self.xks.loc[cluster_id],), 
+                                                          axis=1)
         
         return {
                 "strike_rate":strike_rate, 
                 "sensitivity":tp, 
                 "specificity":tn, 
                 "false_positive":fp, 
-                "false_negative":fn
+                "false_negative":fn,
+                "sse":sse
                }
         
     def run (self, prob=False):
 
         N = float(len(self.df))
 
-        dists = pd.DataFrame(index = self.y.index, 
+        self.dists = pd.DataFrame(index = self.y.index, 
                              columns = range(1, self.n_clusters+1))
         self.pis = pd.Series(1.0/float(len(range(1, self.n_clusters+1))), 
                         index = range(1, self.n_clusters+1))
@@ -85,13 +91,13 @@ class HardKMeans (object):
             prev_xks = self.xks.copy()
             
             for cluster_id in range(1, self.n_clusters+1):
-                dists[cluster_id] = self.y.apply(square_distance, 
+                self.dists[cluster_id] = self.y.apply(square_distance, 
                                               args=(self.xks.loc[cluster_id],), 
                                               axis=1)
             
             if prob:
-                dists = dists - 2 * self.vars * np.log(self.pis)
-            preds = dists.idxmin(axis=1)
+                self.dists = self.dists - 2 * self.vars * np.log(self.pis)
+            preds = self.dists.idxmin(axis=1)
             
             for cluster_id in range(1, self.n_clusters+1):
                 wk = self.y[preds == cluster_id]
@@ -146,14 +152,14 @@ def plot_colds (p, edgecolor):
 #plot_colds(False, "white")
 #plot_colds(True, "black")
 
-nc = 4
+nc = 2
 
 c_cold = HardKMeans(df, nc, random_start=True)
 xks_0_cold = c_cold.xks.copy()
 diff_history_cold, cluster_pred_cold, cluster_perf_cold = c_cold.run(True)
 xks_final_cold = c_cold.xks
 
-c_warm = HardKMeans(df, nc, random_start=False)
+c_warm = HardKMeans(df, nc, random_start=True)
 xks_0_warm = c_warm.xks.copy()
 diff_history_warm, cluster_pred_warm, cluster_perf_warm = c_warm.run(True)
 xks_final_warm = c_warm.xks
